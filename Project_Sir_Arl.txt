@@ -1,0 +1,510 @@
+using System;
+using System.Collections.Generic;
+
+class BookTracker
+{
+    const int MaxBooks = 100;
+
+    static string[] titles = new string[MaxBooks];
+    static string[] authors = new string[MaxBooks];
+    static string[] genres = new string[MaxBooks];
+    static int[] years = new int[MaxBooks];
+    static int[] quantities = new int[MaxBooks];
+
+    static List<Borrower>[] bookBorrowers = new List<Borrower>[MaxBooks];
+
+    static int bookCount = 0;
+
+    static void Main()
+    {
+        for (int i = 0; i < MaxBooks; i++)
+            bookBorrowers[i] = new List<Borrower>();
+
+        while (true)
+        {
+            Console.WriteLine("\n--- Book Tracker Menu ---");
+            Console.WriteLine("1. Add Book");
+            Console.WriteLine("2. View Books");
+            Console.WriteLine("3. Borrow Book");
+            Console.WriteLine("4. Update");
+            Console.WriteLine("5. Delete");
+            Console.WriteLine("6. Exit");
+            Console.Write("Choose an option (1-6): ");
+            string choice = Console.ReadLine();
+
+            switch (choice)
+            {
+                case "1": AddBook(); break;
+                case "2": ViewBooksMenu(); break;
+                case "3": BorrowBook(); break;
+                case "4": UpdateMenu(); break;
+                case "5": DeleteMenu(); break;
+                case "6": Console.WriteLine("Exiting program. Goodbye!"); return;
+                default: Console.WriteLine("Invalid option. Try again."); break;
+            }
+        }
+    }
+
+    static void AddBook()
+    {
+        if (bookCount >= MaxBooks)
+        {
+            Console.WriteLine("Book storage full. Cannot add more books.");
+            return;
+        }
+
+        Console.WriteLine("\n--- Add Book ---");
+        Console.Write("Title: ");
+        string title = Console.ReadLine().Trim();
+        Console.Write("Author: ");
+        string author = Console.ReadLine().Trim();
+        Console.Write("Genre: ");
+        string genre = Console.ReadLine().Trim();
+
+        int year;
+        while (true)
+        {
+            Console.Write("Year Published: ");
+            if (int.TryParse(Console.ReadLine(), out year) && year > 0)
+                break;
+            Console.WriteLine("Invalid year. Please enter a positive number.");
+        }
+
+        int quantity;
+        while (true)
+        {
+            Console.Write("Quantity: ");
+            if (int.TryParse(Console.ReadLine(), out quantity) && quantity >= 0)
+                break;
+            Console.WriteLine("Invalid quantity. Please enter zero or more.");
+        }
+
+        // Check for existing book with same title, author, genre, and year
+        for (int i = 0; i < bookCount; i++)
+        {
+            if (titles[i].Equals(title, StringComparison.OrdinalIgnoreCase) &&
+                authors[i].Equals(author, StringComparison.OrdinalIgnoreCase) &&
+                genres[i].Equals(genre, StringComparison.OrdinalIgnoreCase) &&
+                years[i] == year)
+            {
+                quantities[i] += quantity;
+                Console.WriteLine("Book already exists. Quantity updated.");
+                return;
+            }
+        }
+
+        // If not found, add as new book
+        titles[bookCount] = title;
+        authors[bookCount] = author;
+        genres[bookCount] = genre;
+        years[bookCount] = year;
+        quantities[bookCount] = quantity;
+        bookBorrowers[bookCount] = new List<Borrower>();
+        bookCount++;
+        Console.WriteLine("Book added successfully.");
+    }
+
+    static void ViewBooksMenu()
+    {
+        Console.WriteLine("\n--- View Books ---");
+        Console.WriteLine("1. Search by Title");
+        Console.WriteLine("2. Display All Books");
+        Console.Write("Choose an option (1-2): ");
+        string choice = Console.ReadLine();
+
+        switch (choice)
+        {
+            case "1": SearchBookByTitle(); break;
+            case "2": DisplayAllBooks(); break;
+            default: Console.WriteLine("Invalid option."); break;
+        }
+    }
+
+    static void SearchBookByTitle()
+    {
+        Console.Write("Enter title to search: ");
+        string searchTitle = Console.ReadLine().Trim().ToLower();
+
+        bool found = false;
+        for (int i = 0; i < bookCount; i++)
+        {
+            if (titles[i].ToLower().Contains(searchTitle))
+            {
+                DisplayBook(i);
+                found = true;
+            }
+        }
+        if (!found)
+            Console.WriteLine("No books found matching that title.");
+    }
+
+    static void DisplayAllBooks()
+    {
+        if (bookCount == 0)
+        {
+            Console.WriteLine("No books in the system.");
+            return;
+        }
+
+        Console.WriteLine("\nAll Books:");
+        for (int i = 0; i < bookCount; i++)
+            DisplayBook(i);
+    }
+
+    static void DisplayBook(int index)
+    {
+        Console.WriteLine($"\n[{index + 1}] Title: {titles[index]}");
+        Console.WriteLine($"    Author: {authors[index]}");
+        Console.WriteLine($"    Genre: {genres[index]}");
+        Console.WriteLine($"    Year Published: {years[index]}");
+        Console.WriteLine($"    Quantity Available: {quantities[index]}");
+
+        if (bookBorrowers[index].Count > 0)
+        {
+            Console.WriteLine("    Borrowers:");
+            Console.WriteLine("    ------------------------------------------------------------------------------");
+            Console.WriteLine("    | First Name | Last Name  | Age |  ID  | Quantity Borrowed |");
+            Console.WriteLine("    ------------------------------------------------------------------------------");
+            foreach (var b in bookBorrowers[index])
+                Console.WriteLine($"    | {b.FirstName,-10} | {b.LastName,-10} | {b.Age,3} | {b.ID,4} | {b.QuantityBorrowed,17} |");
+            Console.WriteLine("    ------------------------------------------------------------------------------");
+        }
+        else
+        {
+            Console.WriteLine("    Not currently borrowed.");
+        }
+    }
+
+    static void BorrowBook()
+    {
+        if (bookCount == 0)
+        {
+            Console.WriteLine("No books available to borrow.");
+            return;
+        }
+
+        Console.WriteLine("\n--- Borrow Book ---");
+        Console.WriteLine("Books with available quantity:");
+        bool anyAvailable = false;
+        for (int i = 0; i < bookCount; i++)
+        {
+            if (quantities[i] > 0)
+            {
+                Console.WriteLine($"[{i + 1}] {titles[i]} by {authors[i]} (Quantity: {quantities[i]})");
+                anyAvailable = true;
+            }
+        }
+        if (!anyAvailable)
+        {
+            Console.WriteLine("No available books to borrow.");
+            return;
+        }
+
+        int bookIndex;
+        while (true)
+        {
+            Console.Write("Enter the number of the book to borrow: ");
+            if (int.TryParse(Console.ReadLine(), out bookIndex) && bookIndex >= 1 && bookIndex <= bookCount)
+            {
+                bookIndex -= 1;
+                if (quantities[bookIndex] == 0)
+                {
+                    Console.WriteLine("No quantity left to borrow.");
+                }
+                else
+                {
+                    break;
+                }
+            }
+            else
+            {
+                Console.WriteLine("Invalid book number.");
+            }
+        }
+
+        int maxQuantity = quantities[bookIndex];
+        int borrowQuantity;
+        while (true)
+        {
+            Console.Write($"Enter quantity to borrow (1 to {maxQuantity}): ");
+            if (int.TryParse(Console.ReadLine(), out borrowQuantity) && borrowQuantity >= 1 && borrowQuantity <= maxQuantity)
+                break;
+            Console.WriteLine("Invalid quantity.");
+        }
+
+        Console.WriteLine("Enter borrower information:");
+        Console.Write("First Name: ");
+        string firstName = Console.ReadLine().Trim();
+        Console.Write("Last Name: ");
+        string lastName = Console.ReadLine().Trim();
+
+        // Check if this borrower already borrowed any book
+        for (int i = 0; i < bookCount; i++)
+        {
+            foreach (var b in bookBorrowers[i])
+            {
+                if (b.FirstName.Equals(firstName, StringComparison.OrdinalIgnoreCase) &&
+                    b.LastName.Equals(lastName, StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine("This person already borrowed a book. They must return it first.");
+                    return;
+                }
+            }
+        }
+
+        int age;
+        while (true)
+        {
+            Console.Write("Age: ");
+            if (int.TryParse(Console.ReadLine(), out age) && age > 0)
+                break;
+            Console.WriteLine("Invalid age.");
+        }
+
+        int id;
+        while (true)
+        {
+            Console.Write("4-digit ID number: ");
+            string idStr = Console.ReadLine().Trim();
+            if (idStr.Length == 4 && int.TryParse(idStr, out id))
+                break;
+            Console.WriteLine("ID must be a 4-digit number.");
+        }
+
+        Borrower newBorrower = new Borrower(firstName, lastName, age, id, borrowQuantity);
+        bookBorrowers[bookIndex].Add(newBorrower);
+        quantities[bookIndex] -= borrowQuantity;
+
+        Console.WriteLine($"Book '{titles[bookIndex]}' borrowed successfully by {firstName} {lastName}.");
+        Console.WriteLine($"Quantity borrowed: {borrowQuantity}");
+        Console.WriteLine($"Quantity remaining: {quantities[bookIndex]}");
+    }
+
+    // --- UPDATE MENU ---
+    static void UpdateMenu()
+    {
+        Console.WriteLine("1. Update Borrower");
+        Console.Write("press 1");
+        string choice = Console.ReadLine();
+        switch (choice)
+        {
+            case "1": UpdateBorrower(); break;
+            default: Console.WriteLine("Invalid option."); break;
+        }
+    }
+
+   
+
+    static void UpdateBorrower()
+    {
+        if (bookCount == 0)
+        {
+            Console.WriteLine("No books in the system.");
+            return;
+        }
+        DisplayAllBooks();
+        Console.Write("Enter the book number of the borrower to update: ");
+        if (int.TryParse(Console.ReadLine(), out int bookIdx) && bookIdx >= 1 && bookIdx <= bookCount)
+        {
+            bookIdx -= 1;
+            if (bookBorrowers[bookIdx].Count == 0)
+            {
+                Console.WriteLine("No borrowers for this book.");
+                return;
+            }
+            for (int i = 0; i < bookBorrowers[bookIdx].Count; i++)
+            {
+                var b = bookBorrowers[bookIdx][i];
+                Console.WriteLine($"[{i + 1}] {b.FirstName} {b.LastName}, Age: {b.Age}, ID: {b.ID}, Quantity: {b.QuantityBorrowed}");
+            }
+            Console.Write("Enter borrower number to update: ");
+            if (int.TryParse(Console.ReadLine(), out int bIdx) && bIdx >= 1 && bIdx <= bookBorrowers[bookIdx].Count)
+            {
+                bIdx -= 1;
+                var borrower = bookBorrowers[bookIdx][bIdx];
+                Console.WriteLine("Enter new details (leave blank to keep current):");
+                Console.Write($"First Name ({borrower.FirstName}): ");
+                string fn = Console.ReadLine();
+                if (!string.IsNullOrWhiteSpace(fn)) borrower.FirstName = fn.Trim();
+
+                Console.Write($"Last Name ({borrower.LastName}): ");
+                string ln = Console.ReadLine();
+                if (!string.IsNullOrWhiteSpace(ln)) borrower.LastName = ln.Trim();
+
+                Console.Write($"Age ({borrower.Age}): ");
+                string ageStr = Console.ReadLine();
+                if (int.TryParse(ageStr, out int age) && age > 0) borrower.Age = age;
+
+                Console.Write($"ID ({borrower.ID}): ");
+                string idStr = Console.ReadLine();
+                if (int.TryParse(idStr, out int id) && idStr.Length == 4) borrower.ID = id;
+
+                Console.Write($"Quantity Borrowed ({borrower.QuantityBorrowed}): ");
+                string qStr = Console.ReadLine();
+                if (int.TryParse(qStr, out int q) && q > 0)
+                {
+                    // Adjust book quantity accordingly
+                    int diff = q - borrower.QuantityBorrowed;
+                    if (quantities[bookIdx] - diff >= 0)
+                    {
+                        quantities[bookIdx] -= diff;
+                        borrower.QuantityBorrowed = q;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Not enough quantity available to increase borrow amount.");
+                    }
+                }
+                Console.WriteLine("Borrower updated.");
+            }
+            else
+            {
+                Console.WriteLine("Invalid borrower number.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Invalid book number.");
+        }
+    }
+
+    // --- DELETE MENU ---
+    static void DeleteMenu()
+    {
+        Console.WriteLine("\n--- Delete Menu ---");
+        Console.WriteLine("1. Delete Book");
+        Console.WriteLine("2. Delete Borrower");
+        Console.Write("Choose an option (1-2): ");
+        string choice = Console.ReadLine();
+        switch (choice)
+        {
+            case "1": DeleteBook(); break;
+            case "2": DeleteBorrower(); break;
+            default: Console.WriteLine("Invalid option."); break;
+        }
+    }
+
+    static void DeleteBook()
+    {
+        if (bookCount == 0)
+        {
+            Console.WriteLine("No books to delete.");
+            return;
+        }
+        DisplayAllBooks();
+        Console.Write("Enter book number to delete: ");
+        if (int.TryParse(Console.ReadLine(), out int idx) && idx >= 1 && idx <= bookCount)
+        {
+            idx -= 1;
+            if (quantities[idx] > 1)
+            {
+                Console.WriteLine($"This book has {quantities[idx]} copies.");
+                int delQty;
+                while (true)
+                {
+                    Console.Write($"How many copies do you want to delete? (1 to {quantities[idx]}): ");
+                    if (int.TryParse(Console.ReadLine(), out delQty) && delQty >= 1 && delQty <= quantities[idx])
+                        break;
+                    Console.WriteLine("Invalid quantity.");
+                }
+                quantities[idx] -= delQty;
+                Console.WriteLine($"{delQty} copies deleted. {quantities[idx]} copies remaining.");
+                // If all copies are deleted, remove the book entirely
+                if (quantities[idx] == 0)
+                {
+                    // Shift all books and borrowers after idx up by one
+                    for (int i = idx; i < bookCount - 1; i++)
+                    {
+                        titles[i] = titles[i + 1];
+                        authors[i] = authors[i + 1];
+                        genres[i] = genres[i + 1];
+                        years[i] = years[i + 1];
+                        quantities[i] = quantities[i + 1];
+                        bookBorrowers[i] = bookBorrowers[i + 1];
+                    }
+                    bookCount--;
+                    Console.WriteLine("All copies deleted. Book and its borrowers removed.");
+                }
+            }
+            else // quantity == 1
+            {
+                // Remove the book entirely
+                for (int i = idx; i < bookCount - 1; i++)
+                {
+                    titles[i] = titles[i + 1];
+                    authors[i] = authors[i + 1];
+                    genres[i] = genres[i + 1];
+                    years[i] = years[i + 1];
+                    quantities[i] = quantities[i + 1];
+                    bookBorrowers[i] = bookBorrowers[i + 1];
+                }
+                bookCount--;
+                Console.WriteLine("Book and its borrowers deleted.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Invalid book number.");
+        }
+    }
+
+    static void DeleteBorrower()
+    {
+        if (bookCount == 0)
+        {
+            Console.WriteLine("No books in the system.");
+            return;
+        }
+        DisplayAllBooks();
+        Console.Write("Enter the book number of the borrower to delete: ");
+        if (int.TryParse(Console.ReadLine(), out int bookIdx) && bookIdx >= 1 && bookIdx <= bookCount)
+        {
+            bookIdx -= 1;
+            if (bookBorrowers[bookIdx].Count == 0)
+            {
+                Console.WriteLine("No borrowers for this book.");
+                return;
+            }
+            for (int i = 0; i < bookBorrowers[bookIdx].Count; i++)
+            {
+                var b = bookBorrowers[bookIdx][i];
+                Console.WriteLine($"[{i + 1}] {b.FirstName} {b.LastName}, Age: {b.Age}, ID: {b.ID}, Quantity: {b.QuantityBorrowed}");
+            }
+            Console.Write("Enter borrower number to delete: ");
+            if (int.TryParse(Console.ReadLine(), out int bIdx) && bIdx >= 1 && bIdx <= bookBorrowers[bookIdx].Count)
+            {
+                bIdx -= 1;
+                // Return the quantity to the book
+                quantities[bookIdx] += bookBorrowers[bookIdx][bIdx].QuantityBorrowed;
+                bookBorrowers[bookIdx].RemoveAt(bIdx);
+                Console.WriteLine("Borrower deleted.");
+            }
+            else
+            {
+                Console.WriteLine("Invalid borrower number.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Invalid book number.");
+        }
+    }
+}
+
+class Borrower
+{
+    public string FirstName;
+    public string LastName;
+    public int Age;
+    public int ID;
+    public int QuantityBorrowed;
+
+    public Borrower(string firstName, string lastName, int age, int id, int quantityBorrowed)
+    {
+        FirstName = firstName;
+        LastName = lastName;
+        Age = age;
+        ID = id;
+        QuantityBorrowed = quantityBorrowed;
+    }
+}
